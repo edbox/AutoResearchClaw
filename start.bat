@@ -33,7 +33,23 @@ if not exist "pyproject.toml" (
     exit /b 1
 )
 
-REM 3) Create virtual environment if missing
+REM 3) Update source from GitHub (if this is a git clone)
+where git >nul 2>&1
+if errorlevel 1 (
+    echo [WARN] Khong tim thay git. Bo qua buoc cap nhat source.
+) else (
+    if exist ".git" (
+        echo [INFO] Dang cap nhat source tu GitHub (git pull --ff-only)...
+        git pull --ff-only
+        if errorlevel 1 (
+            echo [WARN] Khong the git pull tu remote. Tiep tuc voi source hien tai.
+        )
+    ) else (
+        echo [WARN] Thu muc hien tai khong phai git repo (.git khong ton tai). Bo qua cap nhat source.
+    )
+)
+
+REM 4) Create virtual environment if missing
 if not exist ".venv\Scripts\python.exe" (
     echo [INFO] Dang tao .venv...
     py -3.11 -m venv .venv 2>nul
@@ -54,7 +70,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM 4) Install dependencies
+REM 5) Install dependencies
 python -m pip install --upgrade pip setuptools wheel
 if errorlevel 1 (
     echo [ERROR] Khong nang cap duoc pip/setuptools/wheel.
@@ -69,7 +85,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM 5) Setup + init config
+REM 6) Setup + init config
 echo [INFO] Dang chay researchclaw setup...
 researchclaw setup
 if errorlevel 1 (
@@ -93,7 +109,7 @@ if not exist "config.arc.yaml" (
     )
 )
 
-REM 6) API key + topic
+REM 7) API key + topic
 if "%OPENAI_API_KEY%"=="" (
     echo [INFO] Bien OPENAI_API_KEY chua duoc dat.
     set /p OPENAI_API_KEY=Nhap OPENAI_API_KEY: 
@@ -112,7 +128,7 @@ if "%RC_TOPIC%"=="" (
     exit /b 1
 )
 
-REM 7) Run pipeline
+REM 8) Run pipeline
 echo [INFO] Dang chay pipeline...
 researchclaw run --config config.arc.yaml --topic "%RC_TOPIC%" --auto-approve
 if errorlevel 1 (
