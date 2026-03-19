@@ -1,4 +1,8 @@
 @echo off
+setlocal EnableExtensions
+title AutoResearchClaw - Windows 11 All-in-One
+
+cd /d "%~dp0"
 setlocal EnableExtensions EnableDelayedExpansion
 title AutoResearchClaw - Windows 11 All-in-One
 
@@ -15,6 +19,70 @@ echo.
 
 REM 1) Check Python
 python --version >nul 2>&1
+if not errorlevel 1 goto PY_OK
+py --version >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Khong tim thay Python.
+    echo [HINT] Cai Python 3.11+ va bat "Add python.exe to PATH".
+    pause
+    exit /b 1
+)
+:PY_OK
+
+REM 2) Ensure source exists
+if exist "pyproject.toml" goto SOURCE_READY
+if exist "AutoResearchClaw\pyproject.toml" (
+    cd /d "AutoResearchClaw"
+    goto SOURCE_READY
+)
+
+echo [INFO] Chua tim thay source. Dang tai tu GitHub: https://github.com/edbox/AutoResearchClaw
+where git >nul 2>&1
+if errorlevel 1 goto DOWNLOAD_ZIP
+
+git clone https://github.com/edbox/AutoResearchClaw.git AutoResearchClaw
+if not errorlevel 1 goto ENTER_SOURCE
+
+echo [WARN] Clone that bai. Repo co the can dang nhap GitHub.
+set /p GH_USER=Nhap GitHub username: 
+if "%GH_USER%"=="" (
+    echo [ERROR] Username khong duoc de trong.
+    pause
+    exit /b 1
+)
+set /p GH_TOKEN=Nhap GitHub token/password: 
+if "%GH_TOKEN%"=="" (
+    echo [ERROR] Token/password khong duoc de trong.
+    pause
+    exit /b 1
+)
+call git clone https://%%GH_USER%%:%%GH_TOKEN%%@github.com/edbox/AutoResearchClaw.git AutoResearchClaw
+if errorlevel 1 (
+    echo [ERROR] Clone source that bai ngay ca khi da nhap tai khoan.
+    pause
+    exit /b 1
+)
+goto ENTER_SOURCE
+
+:DOWNLOAD_ZIP
+echo [WARN] Khong tim thay git. Thu tai ban zip...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://github.com/edbox/AutoResearchClaw/archive/refs/heads/main.zip' -OutFile 'AutoResearchClaw.zip'"
+if errorlevel 1 (
+    echo [ERROR] Tai source that bai.
+    echo [HINT] Neu repo private, hay cai git va chay lai de nhap tai khoan GitHub.
+    pause
+    exit /b 1
+)
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path 'AutoResearchClaw.zip' -DestinationPath '.' -Force"
+if exist "AutoResearchClaw-main" ren "AutoResearchClaw-main" "AutoResearchClaw"
+del /f /q "AutoResearchClaw.zip" >nul 2>&1
+
+:ENTER_SOURCE
+if not exist "AutoResearchClaw\pyproject.toml" (
+    echo [ERROR] Khong tim thay source hop le sau khi tai.
+    pause
+    exit /b 1
+)
 if errorlevel 1 (
     py --version >nul 2>&1
     if errorlevel 1 (
@@ -88,6 +156,21 @@ if not exist "pyproject.toml" (
     exit /b 1
 )
 
+REM 3) Update source from GitHub
+where git >nul 2>&1
+if errorlevel 1 (
+    echo [WARN] Khong tim thay git. Bo qua cap nhat source.
+) else (
+    if exist ".git" (
+        echo [INFO] Dang cap nhat source (git pull --ff-only)...
+        git pull --ff-only
+        if errorlevel 1 echo [WARN] git pull that bai. Tiep tuc voi source hien tai.
+    ) else (
+        echo [WARN] Khong co .git. Bo qua cap nhat source.
+    )
+)
+
+REM 4) Create .venv
 REM 3) Update source from GitHub (if this is a git clone)
 where git >nul 2>&1
 if errorlevel 1 (
@@ -151,6 +234,8 @@ if errorlevel 1 (
 
 if not exist "config.arc.yaml" (
     if exist "config.researchclaw.example.yaml" (
+        copy /Y "config.researchclaw.example.yaml" "config.arc.yaml" >nul
+    ) else (
         echo [INFO] Tao config.arc.yaml tu file mau...
         copy /Y "config.researchclaw.example.yaml" "config.arc.yaml" >nul
     ) else (
@@ -165,6 +250,7 @@ if not exist "config.arc.yaml" (
 )
 
 REM 7) API key + topic
+if "%OPENAI_API_KEY%"=="" set /p OPENAI_API_KEY=Nhap OPENAI_API_KEY: 
 if "%OPENAI_API_KEY%"=="" (
     echo [INFO] Bien OPENAI_API_KEY chua duoc dat.
     set /p OPENAI_API_KEY=Nhap OPENAI_API_KEY: 
@@ -183,6 +269,7 @@ if "%RC_TOPIC%"=="" (
     exit /b 1
 )
 
+REM 8) Run
 REM 8) Run pipeline
 echo [INFO] Dang chay pipeline...
 researchclaw run --config config.arc.yaml --topic "%RC_TOPIC%" --auto-approve
