@@ -25,10 +25,65 @@ if errorlevel 1 (
     )
 )
 
-REM 2) Ensure script is run at project root
+REM 2) Ensure source exists (or download from GitHub)
+if exist "pyproject.toml" goto :SOURCE_READY
+if exist "AutoResearchClaw\\pyproject.toml" (
+    cd /d "AutoResearchClaw"
+    goto :SOURCE_READY
+)
+
+echo [INFO] Chua tim thay source AutoResearchClaw. Bat dau tai source tu GitHub...
+where git >nul 2>&1
+if errorlevel 1 (
+    echo [WARN] Khong tim thay git. Thu tai zip tu GitHub...
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://github.com/edbox/AutoResearchClaw/archive/refs/heads/main.zip' -OutFile 'AutoResearchClaw.zip'"
+    if errorlevel 1 (
+        echo [ERROR] Tai source that bai.
+        echo [HINT] Co the repo can dang nhap GitHub. Hay cai git va chay lai de nhap tai khoan.
+        pause
+        exit /b 1
+    )
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path 'AutoResearchClaw.zip' -DestinationPath '.' -Force"
+    if exist "AutoResearchClaw-main" ren "AutoResearchClaw-main" "AutoResearchClaw"
+    del /f /q "AutoResearchClaw.zip" >nul 2>&1
+    if not exist "AutoResearchClaw\\pyproject.toml" (
+        echo [ERROR] Khong giai nen duoc source dung cau truc.
+        pause
+        exit /b 1
+    )
+    cd /d "AutoResearchClaw"
+    goto :SOURCE_READY
+)
+
+echo [INFO] Dang clone source: https://github.com/edbox/AutoResearchClaw
+git clone https://github.com/edbox/AutoResearchClaw.git AutoResearchClaw
+if errorlevel 1 (
+    echo [WARN] Clone khong thanh cong. Repo co the yeu cau dang nhap GitHub.
+    set /p GH_USER=Nhap GitHub username: 
+    set /p GH_TOKEN=Nhap GitHub token/password: 
+    if "!GH_USER!"=="" (
+        echo [ERROR] Username khong duoc de trong.
+        pause
+        exit /b 1
+    )
+    if "!GH_TOKEN!"=="" (
+        echo [ERROR] Token/password khong duoc de trong.
+        pause
+        exit /b 1
+    )
+    git clone https://!GH_USER!:!GH_TOKEN!@github.com/edbox/AutoResearchClaw.git AutoResearchClaw
+    if errorlevel 1 (
+        echo [ERROR] Clone source that bai ngay ca khi da nhap tai khoan.
+        pause
+        exit /b 1
+    )
+)
+
+cd /d "AutoResearchClaw"
+
+:SOURCE_READY
 if not exist "pyproject.toml" (
-    echo [ERROR] Khong tim thay pyproject.toml.
-    echo [HINT] Hay dat start.bat trong thu muc goc cua AutoResearchClaw.
+    echo [ERROR] Source khong hop le: thieu pyproject.toml.
     pause
     exit /b 1
 )
